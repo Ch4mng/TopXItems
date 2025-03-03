@@ -1,0 +1,13 @@
+Design Considerations
+1) Handling Duplicate Detection Events
+Since detection_oid may have duplicates due to upstream ingestion errors, deduplication is performed using reduceByKey to ensure each detection event is counted only once.This ensures accuracy when calculating item frequency per location.
+
+2) Optimizing Join Performance
+Broadcast Hash Join is used because Dataset B (~10,000 rows) is small enough to fit in memory.This avoids expensive shuffle operations and speeds up the join process significantly. If Dataset B grows larger, we can switch to Sort-Merge Join for scalability.
+
+3) Efficient Sorting & Ranking
+Items are sorted by count in descending order using .sortBy { case (item, count) => (-count, item) }, ensuring the most frequent items appear first.zipWithIndex is applied to assign incremental ranking (1, 2, 3, ...) to the most detected items in each geographical location.
+
+4) Scalability & Partitioning
+Since Dataset A contains ~1 million rows, the data is processed in RDDs, ensuring distributed computation.The dataset is partitioned using repartition() before heavy operations to balance workloads across executors.This prevents data skew issues and optimizes Spark’s shuffle performance.
+
